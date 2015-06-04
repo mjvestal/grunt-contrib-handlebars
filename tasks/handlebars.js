@@ -49,9 +49,9 @@ module.exports = function(grunt) {
       return declarations[0];
     }
     // We only need to take any declaration to extract the global namespace.
-    // Another option might be find the shortest declaration which is the global one.
-    var matches = declarations[0].match(/(this\[[^\[]+\])/g);
-    return matches[0];
+      // Another option might be find the shortest declaration which is the global one.
+      var matches = declarations[0].match(/(this\[[^\[]+\])/g);
+      return matches[0];
   };
 
   grunt.registerMultiTask('handlebars', 'Compile handlebars templates and partials.', function() {
@@ -106,7 +106,7 @@ module.exports = function(grunt) {
         if (_.isFunction(options.namespace)) {
           return nsdeclare(options.namespace(filepath), nsDeclareOptions);
         }
-        return nsdeclare(options.namespace, nsDeclareOptions);
+          return nsdeclare(options.namespace, nsDeclareOptions);
       });
 
       // iterate files, processing partials and templates separately
@@ -116,9 +116,9 @@ module.exports = function(grunt) {
           grunt.log.warn('Source file "' + filepath + '" not found.');
           return false;
         }
-        return true;
+          return true;
       })
-      .forEach(function(filepath) {
+      .forEach(function(filepath, index, list) {
         var src = processContent(grunt.file.read(filepath), filepath);
 
         var Handlebars = require('handlebars');
@@ -150,10 +150,21 @@ module.exports = function(grunt) {
             partials.push('Handlebars.registerPartial(' + JSON.stringify(filename) + ', ' + compiled + ');');
           }
         } else {
-          if ((options.amd || options.commonjs) && !useNamespace) {
-            compiled = 'return ' + compiled;
-          }
           filename = processName(filepath);
+
+          if ((options.amd || options.commonjs) && !useNamespace) {
+            if (list.length > 1) {
+              compiled = '\'' + filename + '\': ' + compiled;
+
+              if (index < list.length-1) {
+                // not the last item in object, so add coma
+                compiled = compiled + ',';
+              }
+            } else {
+              compiled = 'return ' + compiled;
+            }
+          }
+          
           if (useNamespace) {
             nsInfo = getNamespaceInfo(filepath);
             if (nsInfo.declaration) {
@@ -186,6 +197,11 @@ module.exports = function(grunt) {
         }
 
         if (options.amd) {
+          var multipleTemplates = templates.length > 1;
+
+          if (!useNamespace && multipleTemplates) {
+            output.unshift('return {');
+          }
           // Wrap the file in an AMD define fn.
           if (typeof options.amd === 'boolean') {
             output.unshift('define([\'handlebars\'], function(Handlebars) {');
@@ -213,6 +229,11 @@ module.exports = function(grunt) {
             // wrapper will return the object containing the template.
             output.push('return ' + extractGlobalNamespace(nsDeclarations) + ';');
           }
+
+          if (!useNamespace && multipleTemplates) {
+            output.push('}');
+          }
+
           output.push('});');
         }
 
